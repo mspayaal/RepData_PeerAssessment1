@@ -1,25 +1,185 @@
 ---
-title: "Reproducible Research: Peer Assessment 1"
-output: 
-  html_document:
-    keep_md: true
+output:
+  html_document: 
+  html_notebook:
+    fig_caption: yes
+    
+---
+# Reproducible Research: Peer Assessment 1
+---
+title: 'Reproducible Research: Peer Assessment 1'
+author: "Mahendra S Payaal"
+date: "4/2/2020"
+
+
+     
+
 ---
 
+##  Setting Global Options
 
-## Loading and preprocessing the data
+```{r savingplots}
+knitr::opts_chunk$set(fig.path = "figure/")
+library(markdown)
+```
 
+##  Loading and preprocessing the data
+```{r loadingData}
+activity <- read.csv("C:/Users/mahendra.payaal/Documents/coursera/data/activity.csv",stringsAsFactors = FALSE)
+activity  <- transform( activity, date = as.Date(date,"%Y-%m-%d"))
 
+```
 
-## What is mean total number of steps taken per day?
+##  What is mean total number of steps taken per day?
 
+###    Total number of steps taken everyday
 
+```{r totalDailysteps}
+steps_daily_Total <- as.data.frame(with(activity,tapply(steps,date,sum,na.rm=TRUE)))
+rownames(steps_daily_Total) <-c(1:61)
+colnames(steps_daily_Total) <- "Daily_Steps_Sum"
+steps_daily_Total
+```
 
-## What is the average daily activity pattern?
+###    Histogram of the total number of steps taken each day
 
+```{r histogram_of_total_daily_steps}
+hist(steps_daily_Total$Daily_Steps_Sum,main ="Histogram of Total Daily Steps over Two Months", xlab = "Daily Steps")
+abline(v=mean(steps_daily_Total$Daily_Steps_Sum,na.rm = TRUE),lwd =2,col="blue")
+text(8000,15,"Mean",col="blue")
 
+abline(v=median(steps_daily_Total$Daily_Steps_Sum,na.rm = TRUE),lwd =2,col="magenta")
+text(12000,25,"Median",col="magenta")
+```
 
-## Imputing missing values
+###    Mean total number of steps taken per day
+```{r}
+mean_daily <- mean(steps_daily_Total$Daily_Steps_Sum,na.rm = TRUE)
+```
+      The mean of total daily steps is `r mean_daily`
 
+###    Median of total daily steps 
+```{r}
+median_daily <- median(steps_daily_Total$Daily_Steps_Sum)
+```
+       The median of total daily steps is `r median_daily`
 
+##  What is the average daily activity pattern?
 
-## Are there differences in activity patterns between weekdays and weekends?
+###    Time series plot of the average number of steps taken
+
+```{r plot_average_steps_by_interval}
+steps_interval_Average <- as.data.frame(with(activity,tapply(steps,interval,mean,na.rm=TRUE)))
+names(steps_interval_Average) <- "Average_steps"
+plot(as.numeric(rownames(steps_interval_Average)),steps_interval_Average$Average_steps,type ="l",xlab="24 Hour Interval of 5 Min each",ylab="Number of Steps")
+title("Time Plot of Average Steps in Every 5 Minutes Interval")
+```
+
+###    The 5-minute interval that, on average, contains the maximum number of steps
+
+```{r}
+max_interval <- which.max(steps_interval_Average[,1])
+names_interval <- rownames(steps_interval_Average)
+max_interval<-names_interval[104]
+max_int <- sub("(\\d+)(\\d{2})","\\1:\\2",max_interval)
+```
+      The average maximun  steps are in 5 minute interval from `r max_int`
+
+##  Imputing missing values
+
+###    Total number of missing values 
+
+```{r}
+total_NA <- sum(is.na(activity$steps))
+```
+
+       The total NAs in data frame  are `r total_NA`
+
+###    Code to describe and show a strategy for imputing missing data and creating a new dataset
+
+- 'NA' values are replaced by the average values for that time interval. The steps are given below
+- A vector"avg_steps" is created which has average value of  all intervals
+- This vector is replicated 61 times to become equal to rows of "activity"  dataframe
+- A new  data set "activity_new" is created
+- Through a 'For' loop 'NA' values are replaced by average values of that interval
+
+```{r}
+avg_steps <- steps_interval_Average[,1]
+avg_steps <- c(rep(avg_steps,times =61))
+activity_new <- activity
+for (i in 1:nrow(activity_new)) {
+      if(is.na(activity_new$steps[i])){
+                activity_new$steps[i] <- avg_steps[i]
+                 }
+}
+steps_daily_Total_new <- as.data.frame(with(activity_new,tapply(steps,date,sum,na.rm=TRUE)))
+rownames(steps_daily_Total_new) <-c(1:61)
+colnames(steps_daily_Total_new) <- "Daily_Steps_Sum"
+```
+
+###    Histogram of the total number of steps taken each day after missing values are imputed
+
+```{r histogram_total_daily_steps_imputed}
+hist(steps_daily_Total_new$Daily_Steps_Sum,main ="Histogram of Total Daily Steps after Imputing", xlab = "Daily Steps")
+abline(v=mean(steps_daily_Total_new$Daily_Steps_Sum,na.rm = TRUE),lwd =2,col="blue")
+text(9000,15,"Mean",col="blue")
+text(12225,25,"Median",col="magenta")
+abline(v=median(steps_daily_Total_new$Daily_Steps_Sum,na.rm = TRUE),lwd =2,col="magenta")
+```
+
+###    Mean of  total number of steps taken per day after imputing
+
+```{r}
+mean_daily_imputed <-mean(steps_daily_Total_new$Daily_Steps_Sum,na.rm = TRUE)
+```
+
+       The mean of total daily steps after imputing is `r mean_daily_imputed`
+
+###    Median of  total number of steps taken per day after imputing
+
+```{r}
+median_daily_imputed <- median(steps_daily_Total_new$Daily_Steps_Sum)
+```
+ 
+      The median of total daily steps after imputing is `r median_daily_imputed`
+      
+      The mean and median earlier were 9354.23 and 10395. After imputing the mean and median has increased and become equal, and the new value is 10766.19 
+
+##  Are there differences in activity patterns between weekdays and weekends?
+
+###    Creating a new factor variable based on weekday and weekend
+
+- The 'date' variable of "activity_new" dataframe has been identified as "weekday" and "weekend"
+- The date variable is replaced with "weekday" or "weekend"
+- Two subsets of new dataset -"activity_new", are created based on "weekday" and "weekend"
+- Average is taken by "tapply" across all intervals for the days for two subsets
+
+```{r}
+wday <- weekdays(activity_new$date)
+for( i in 1:17568) {
+    if(wday[i] =="Saturday"|wday[i]=="Sunday"){
+         wday[i] <-"weekend"
+    }
+  else {wday[i] <-"weekday" }
+  
+}
+activity_new$date <- wday
+weekday_steps <- subset(activity_new,date=="weekday")
+weekend_steps <- subset(activity_new,date=="weekend")
+steps__weekday <- as.data.frame(with(weekday_steps,tapply(steps,interval,mean,na.rm=TRUE)))
+steps__weekend <- as.data.frame(with(weekend_steps,tapply(steps,interval,mean,na.rm=TRUE)))
+names(steps__weekday) <- "Average_steps"
+names(steps__weekend) <- "Average_steps"
+```
+
+###   Panel plot comparing the average number of steps taken per 5-minute interval across weekdays and weekends
+
+```{r weekday versus weekend }
+par(mfrow=c(1,2),mar=c(4,4,3,1))
+plot(as.numeric(rownames(steps__weekday)),steps__weekday$Average_steps,type ="l",xlab="24 Hour Interval of 5 Min each",ylab="Average Steps")
+title("Time Plot for Weekdays")
+
+plot(as.numeric(rownames(steps__weekend)),steps__weekend$Average_steps,type ="l",xlab="24 Hour Interval of 5 Min each",ylab="Average Steps",xlim =c(0000,2359))
+title("Time Plot  for Weekend")
+```
+
